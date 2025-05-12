@@ -8,55 +8,88 @@ dotenv.config();
 
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
-    throw new Error("API key not found in environment variables.");
+  throw new Error("API key not found in environment variables.");
 }
 
 const app = express();
 
 const corsOptions = {
-    origin: process.env.CLIENT_DOMAIN,
-    allowedHeaders: ["Content-Type", "Authorization"],
+  origin: process.env.CLIENT_DOMAIN,
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions));
 
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: "Too many requests from this IP, please try again later.",
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
 });
 
 // Apply rate limiting to all API requests
 app.use(limiter);
 
 app.get("/api/games", async (req, res) => {
-    const { search: searchQuery } = req.query;
+  const { search: searchQuery } = req.query;
 
-    try {
-        const response = await fetch(
-            `https://api.rawg.io/api/games?key=${API_KEY}&search=${searchQuery}`,
-            {
-                method: "GET",
-                headers: {
-                    // Authorization: `Bearer ${API_KEY}`, some APIs requires using the authorization header but not this one
-                    "Content-Type": "application/json",
-                },
-            }
-        );
+  try {
+    const response = await fetch(
+      `https://api.rawg.io/api/games?key=${API_KEY}&search=${searchQuery}`,
+      {
+        method: "GET",
+        headers: {
+          // Authorization: `Bearer ${API_KEY}`, some APIs requires using the authorization header but not this one
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-        if (!response.ok) {
-            return res.status(500).json({ error: "Failed to fetch data from external API"});
-        }
-
-        const data = await response.json();
-        return res.json(data);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: "Failed to fetch data from external API" });
+    if (!response.ok) {
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch data from external API" });
     }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch data from external API" });
+  }
+});
+
+app.get("/api/game", async (req, res) => {
+  const { gameSlug } = req.query;
+
+  try {
+    const response = await fetch(
+      `https://api.rawg.io/api/games/${gameSlug}?key=${API_KEY}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch data from external API");
+    }
+
+    const data = await response.json();
+
+    return res.json(data);
+  } catch (error) {
+    console.error("Error fetching data from API:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch data from external API" });
+  }
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });
